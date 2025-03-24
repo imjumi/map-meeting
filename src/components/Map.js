@@ -1,8 +1,9 @@
 // src/components/Map.js
 import React, { useEffect, useRef, useState } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 
+// firebase에 로케이션 저장
 const saveStartLocation = async (lat, lng) => {
     try {
       const docRef = await addDoc(collection(db, 'meetings/testMeeting/participants'), {
@@ -16,7 +17,29 @@ const saveStartLocation = async (lat, lng) => {
     }
   };
   
+  // firebase에서 로케이션 불러오기
+  const handleFetchParticipants = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'meetings/testMeeting/participants'));
+      const locations = [];
+  
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        locations.push({
+          name: data.name,
+          lat: data.startLocation.lat,
+          lng: data.startLocation.lng,
+        });
+      });
+  
+      console.log('참가자 출발지 목록:', locations);
+      alert(`총 ${locations.length}명의 출발지를 불러왔습니다!`);
+    } catch (err) {
+      console.error('출발지 불러오기 실패:', err);
+    }
+  };
 
+  // 지도 표시
 const Map = () => {
   const mapRef = useRef(null);
   const [markers, setMarkers] = useState([]);
@@ -101,8 +124,18 @@ const Map = () => {
           >
             초기화
           </button>
+          <button
+            onClick={handleFetchParticipants}
+            className="bg-green-600 text-white px-4 py-2 rounded mt-4"
+            >
+            모임추천위치보기
+            </button>
+
         </div>
       </div>
+      
+     
+
 
       <div id="map" style={{ width: '100%', height: '500px' }}></div>
       <p className="mt-2 text-sm text-gray-500">
