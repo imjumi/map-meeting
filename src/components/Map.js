@@ -1,5 +1,21 @@
 // src/components/Map.js
 import React, { useEffect, useRef, useState } from 'react';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
+
+const saveStartLocation = async (lat, lng) => {
+    try {
+      const docRef = await addDoc(collection(db, 'meetings/testMeeting/participants'), {
+        name: '홍길동', // 일단 테스트용 이름
+        startLocation: { lat, lng },
+        timestamp: new Date(),
+      });
+      console.log('Firestore에 저장됨:', docRef.id);
+    } catch (e) {
+      console.error('저장 실패:', e);
+    }
+  };
+  
 
 const Map = () => {
   const mapRef = useRef(null);
@@ -12,15 +28,18 @@ const Map = () => {
       center: new window.kakao.maps.LatLng(37.5665, 126.9780),
       level: 3,
     };
+  
     const map = new window.kakao.maps.Map(container, options);
     mapRef.current = map;
-
-    // 지도 클릭 시 마커 추가
+  
+    // 지도 클릭 시 마커 추가 + 저장
     window.kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
       const latlng = mouseEvent.latLng;
       addMarker(latlng);
+      saveStartLocation(latlng.getLat(), latlng.getLng()); // ✅ 이 줄은 괜찮음
     });
-  }, []);
+  }, []); // ✅ useEffect 끝
+  
 
   const addMarker = (latlng) => {
     const map = mapRef.current;
@@ -33,6 +52,7 @@ const Map = () => {
       marker: marker,
     };
     setMarkers((prev) => [...prev, newMarker]);
+    
   };
 
   const handleSearch = () => {
@@ -45,6 +65,7 @@ const Map = () => {
         const place = data[0]; // 첫 번째 결과만 사용
         const latlng = new window.kakao.maps.LatLng(place.y, place.x);
         addMarker(latlng);
+        saveStartLocation(place.y, place.x);
         mapRef.current.setCenter(latlng);
       } else {
         alert('검색 결과가 없습니다.');
