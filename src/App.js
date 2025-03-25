@@ -4,13 +4,15 @@ import './App.css';
 // src/App.js
 import React from 'react';
 import Map from './components/Map';
+import { BrowserRouter } from 'react-router-dom';
 
 function App() {
   return (
-    <div className="App">
-      <h1>Our Meeting Guide</h1>
-      <Map />
-    </div>
+    <BrowserRouter>
+      <div className="App">
+        <Map />
+      </div>
+    </BrowserRouter>
   );
 }
 
