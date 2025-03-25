@@ -122,43 +122,57 @@ const Map = () => {
 
   // 🔹 JSX UI
   return (
-    <div>
-      <div className="max-w-xl mx-auto mb-4">
-        <input
-          type="text"
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-          placeholder="장소 또는 주소 입력"
-          className="border p-2 w-full my-2 rounded"
-        />
-        <div className="flex gap-2 flex-wrap">
+    <div className="bg-gray-100 min-h-screen py-10">
+      {/* 상단 타이틀 */}
+      <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">
+        Our Meeting Guide
+      </h1>
+  
+      {/* 검색창 + 버튼 카드 영역 */}
+      <div className="max-w-xl mx-auto bg-white shadow-lg rounded-2xl p-6">
+        {/* 검색창 + 검색 버튼 */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
+          <input
+            type="text"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="장소 또는 주소 입력"
+            className="flex-1 border border-gray-300 p-3 rounded-lg w-full text-lg"
+          />
           <button
             onClick={handleSearch}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg whitespace-nowrap"
           >
             검색
           </button>
+        </div>
+  
+        {/* 지도 표시 영역 (기존 유지) */}
+        <div id="map" style={{ width: '100%', height: '500px' }}></div>
+  
+        {/* 하단 안내 및 버튼들 */}
+        <p className="mt-4 text-center text-gray-600 text-sm">
+          현재 출발지 수: {markers.length}
+        </p>
+  
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+          <button
+            onClick={handleFetchParticipants}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg text-lg"
+          >
+            모임 추천 위치 보기
+          </button>
           <button
             onClick={clearMarkers}
-            className="bg-red-500 text-white px-4 py-2 rounded"
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg text-lg"
           >
             초기화
           </button>
-          <button
-            onClick={handleFetchParticipants}
-            className="bg-green-600 text-white px-4 py-2 rounded"
-          >
-            모임추천위치보기
-          </button>
         </div>
       </div>
-
-      <div id="map" style={{ width: '100%', height: '500px' }}></div>
-      <p className="mt-2 text-sm text-gray-500">
-        현재 출발지 수: {markers.length}
-      </p>
     </div>
   );
+  
 };
 
 export default Map;
