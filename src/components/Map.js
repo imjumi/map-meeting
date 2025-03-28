@@ -24,11 +24,11 @@ const Map = () => {
     meeting: true,
   });
   const [showCategoryToggles, setShowCategoryToggles] = useState(false);
+  const recommendCenterRef = useRef(null);
 
   const handleToggleCategories = () => {
     setShowCategoryToggles((prev) => !prev);
   };
-  
 
   const categoryConfigs = {
     cafe: { keyword: '카페', color: 'blue' },
@@ -53,19 +53,15 @@ const Map = () => {
 
   const handleConfirmLocation = () => {
     const marker = markerRef.current;
-    if (!marker || !meetingId || !userName) {
-      alert('출발지 선택 후 확정해주세요.');
-      return;
-    }
+    if (!marker || !meetingId || !userName) return alert('출발지 선택 후 확정해주세요.');
+
     const position = marker.getPosition();
     saveStartLocation(position.getLat(), position.getLng());
   };
 
   const addMarker = (latlng) => {
     const map = mapRef.current;
-    if (markerRef.current) {
-      markerRef.current.setMap(null);
-    }
+    if (markerRef.current) markerRef.current.setMap(null);
     const newMarker = new window.kakao.maps.Marker({ position: latlng });
     newMarker.setMap(map);
     markerRef.current = newMarker;
