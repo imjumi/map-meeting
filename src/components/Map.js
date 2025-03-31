@@ -18,17 +18,14 @@ const Map = () => {
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [categoryMarkers, setCategoryMarkers] = useState({});
   const [visibleCategories, setVisibleCategories] = useState({
-    cafe: true,
-    study: true,
-    rental: true,
-    meeting: true,
+    cafe: false,
+    study: false,
+    rental: false,
+    meeting: false,
   });
   const [showCategoryToggles, setShowCategoryToggles] = useState(false);
   const recommendCenterRef = useRef(null);
-
-  const handleToggleCategories = () => {
-    setShowCategoryToggles((prev) => !prev);
-  };
+  const [categoryPlaces, setCategoryPlaces] = useState({});
 
   const categoryConfigs = {
     cafe: { keyword: '카페', color: 'blue' },
@@ -45,7 +42,6 @@ const Map = () => {
         startLocation: { lat, lng },
         timestamp: new Date(),
       });
-      console.log('✅ 출발지 저장됨!');
     } catch (e) {
       console.error('저장 실패:', e);
     }
@@ -54,7 +50,6 @@ const Map = () => {
   const handleConfirmLocation = () => {
     const marker = markerRef.current;
     if (!marker || !meetingId || !userName) return alert('출발지 선택 후 확정해주세요.');
-
     const position = marker.getPosition();
     saveStartLocation(position.getLat(), position.getLng());
   };
@@ -70,167 +65,124 @@ const Map = () => {
   const handleSearch = () => {
     if (!searchKeyword.trim()) return;
     const ps = new window.kakao.maps.services.Places();
-    ps.keywordSearch(searchKeyword, function (data, status) {
+    ps.keywordSearch(searchKeyword, (data, status) => {
       if (status === window.kakao.maps.services.Status.OK) {
         const place = data[0];
         const latlng = new window.kakao.maps.LatLng(place.y, place.x);
         addMarker(latlng);
         mapRef.current.setCenter(latlng);
-      } else {
-        alert('검색 결과가 없습니다.');
-      }
+      } else alert('검색 결과가 없습니다.');
     });
   };
 
-  const showCategoryPlaces = (lat, lng) => {
-    const ps = new window.kakao.maps.services.Places();
+  const toggleCategory = (key) => {
+    const updated = !visibleCategories[key];
+    setVisibleCategories((prev) => ({ ...prev, [key]: updated }));
     const map = mapRef.current;
-    const center = new window.kakao.maps.LatLng(lat, lng);
-    const newMarkers = {};
 
-    Object.entries(categoryConfigs).forEach(([key, { keyword, color }]) => {
+    if (categoryMarkers[key]) {
+      categoryMarkers[key].forEach((m) => m.setMap(updated ? map : null));
+      return;
+    }
+
+    if (recommendCenterRef.current) {
+      const ps = new window.kakao.maps.services.Places();
       ps.keywordSearch(
-        keyword,
+        categoryConfigs[key].keyword,
         (data, status) => {
           if (status === window.kakao.maps.services.Status.OK) {
-            newMarkers[key] = data.map((place) => {
+            data.sort((a, b) => a.distance - b.distance);
+            setCategoryPlaces((prev) => ({ ...prev, [key]: data }));
+            const markers = data.map((place) => {
               const latlng = new window.kakao.maps.LatLng(place.y, place.x);
               const marker = new window.kakao.maps.Marker({
                 position: latlng,
                 title: place.place_name,
               });
-              if (visibleCategories[key]) marker.setMap(map);
+              const infowindow = new window.kakao.maps.InfoWindow({
+                content: `<div>[${categoryConfigs[key].keyword}] ${place.place_name}</div>`
+              });
+              window.kakao.maps.event.addListener(marker, 'click', () => infowindow.open(map, marker));
+              if (updated) marker.setMap(map);
               return marker;
             });
-            setCategoryMarkers((prev) => ({ ...prev, ...newMarkers }));
+            setCategoryMarkers((prev) => ({ ...prev, [key]: markers }));
           }
         },
-        { location: center, radius: 2000 }
+        { location: recommendCenterRef.current, radius: 1000 }
       );
-    });
-  };
-
-  const toggleCategory = (key) => {
-    setVisibleCategories((prev) => {
-      const updated = { ...prev, [key]: !prev[key] };
-      const map = mapRef.current;
-      if (categoryMarkers[key]) {
-        categoryMarkers[key].forEach((m) => m.setMap(updated[key] ? map : null));
-      }
-      return updated;
-    });
+    }
   };
 
   const handleFetchParticipants = async () => {
     try {
-      const snapshot = await getDocs(
-        collection(db, `meetings/${meetingId}/participants`)
-      );
-      const fetched = [];
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        fetched.push({
-          name: data.name,
-          lat: data.startLocation.lat,
-          lng: data.startLocation.lng,
-        });
-      });
-
+      const snapshot = await getDocs(collection(db, `meetings/${meetingId}/participants`));
+      const fetched = snapshot.docs.map((doc) => doc.data());
       setParticipants(fetched);
 
-      // 🔹 모든 참가자 자동 선택 (최초만)
       if (selectedParticipants.length === 0) {
         setSelectedParticipants(fetched.map((p) => p.name));
         return;
       }
 
-      const filtered = fetched.filter((p) =>
-        selectedParticipants.includes(p.name)
-      );
+      const filtered = fetched.filter((p) => selectedParticipants.includes(p.name));
+      if (filtered.length === 0) return alert('선택된 참가자가 없습니다.');
 
-      if (filtered.length === 0) {
-        alert('선택된 참가자가 없습니다.');
-        return;
-      }
-
-      const avgLat =
-        filtered.reduce((sum, loc) => sum + loc.lat, 0) / filtered.length;
-      const avgLng =
-        filtered.reduce((sum, loc) => sum + loc.lng, 0) / filtered.length;
+      const avgLat = filtered.reduce((sum, loc) => sum + loc.startLocation.lat, 0) / filtered.length;
+      const avgLng = filtered.reduce((sum, loc) => sum + loc.startLocation.lng, 0) / filtered.length;
 
       const center = new window.kakao.maps.LatLng(avgLat, avgLng);
       mapRef.current.setCenter(center);
+      recommendCenterRef.current = center;
 
       const ps = new window.kakao.maps.services.Places();
-      ps.keywordSearch(
-        '지하철역',
-        (data, status) => {
+      ps.keywordSearch('지하철역', (data, status) => {
+        if (status !== window.kakao.maps.services.Status.OK) return alert('근처 역을 찾을 수 없습니다.');
+        data.sort((a, b) => {
+          const d1 = Math.pow(avgLat - parseFloat(a.y), 2) + Math.pow(avgLng - parseFloat(a.x), 2);
+          const d2 = Math.pow(avgLat - parseFloat(b.y), 2) + Math.pow(avgLng - parseFloat(b.x), 2);
+          return d1 - d2;
+        });
+        const nearest = data[0];
+        const latlng = new window.kakao.maps.LatLng(nearest.y, nearest.x);
+
+        if (recommendMarkerRef.current) recommendMarkerRef.current.setMap(null);
+        const marker = new window.kakao.maps.Marker({
+          position: latlng,
+          image: new window.kakao.maps.MarkerImage(
+            'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png',
+            new window.kakao.maps.Size(40, 40)
+          ),
+        });
+        marker.setMap(mapRef.current);
+        recommendMarkerRef.current = marker;
+
+        const geocoder = new window.kakao.maps.services.Geocoder();
+        geocoder.coord2Address(nearest.x, nearest.y, (result, status) => {
           if (status === window.kakao.maps.services.Status.OK) {
-            data.sort((a, b) => {
-              const d1 =
-                Math.pow(avgLat - parseFloat(a.y), 2) +
-                Math.pow(avgLng - parseFloat(a.x), 2);
-              const d2 =
-                Math.pow(avgLat - parseFloat(b.y), 2) +
-                Math.pow(avgLng - parseFloat(b.x), 2);
-              return d1 - d2;
-            });
+            const address = result[0].address.address_name;
+            setRecommendAddress(`${address} (${nearest.place_name})`);
 
-            const nearest = data[0];
-            const latlng = new window.kakao.maps.LatLng(nearest.y, nearest.x);
-
-            if (recommendMarkerRef.current) {
-              recommendMarkerRef.current.setMap(null);
-            }
-
-            const marker = new window.kakao.maps.Marker({
-              position: latlng,
-              image: new window.kakao.maps.MarkerImage(
-                'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png',
-                new window.kakao.maps.Size(40, 40)
-              ),
-            });
-            marker.setMap(mapRef.current);
-            recommendMarkerRef.current = marker;
-
-            const geocoder = new window.kakao.maps.services.Geocoder();
-            geocoder.coord2Address(nearest.x, nearest.y, (result, status) => {
-              if (status === window.kakao.maps.services.Status.OK) {
-                const address = result[0].address.address_name;
-                const text = `${address} (${nearest.place_name})`;
-                setRecommendAddress(text);
-
-                if (recommendInfoWindowRef.current) {
-                  recommendInfoWindowRef.current.close();
-                }
-
-                const iwContent = `
-                  <div style="padding:10px; font-size:16px; white-space:nowrap;">
-                    <strong>[모임추천 역]</strong> <br/>
-                    🚇 ${nearest.place_name}<br/>
-                    📍 ${address}
-                  </div>
-                `;
-                const infowindow = new window.kakao.maps.InfoWindow({
-                  content: iwContent,
-                });
-                infowindow.open(mapRef.current, marker);
-                recommendInfoWindowRef.current = infowindow;
-              }
-            });
-          } else {
-            alert('근처 역을 찾을 수 없습니다.');
+            if (recommendInfoWindowRef.current) recommendInfoWindowRef.current.close();
+            const iwContent = `
+              <div style="padding:10px; font-size:16px; white-space:nowrap;">
+                <strong>[모임추천 역]</strong><br/>🚇 ${nearest.place_name}<br/>📍 ${address}
+              </div>
+            `;
+            const infowindow = new window.kakao.maps.InfoWindow({ content: iwContent });
+            infowindow.open(mapRef.current, marker);
+            recommendInfoWindowRef.current = infowindow;
           }
-        },
-        {
-          location: center,
-          radius: 2000,
-        }
-      );
+        });
+      }, { location: center, radius: 2000 });
     } catch (err) {
       console.error('출발지 불러오기 실패:', err);
     }
+  };
+
+  const handleToggleCategories = () => {
+    setShowCategoryToggles(true);
+    setVisibleCategories({ cafe: false, study: false, rental: false, meeting: false });
   };
 
   const handleCopyAddress = () => {
@@ -244,37 +196,21 @@ const Map = () => {
   useEffect(() => {
     if (!meetingId) return;
     const container = document.getElementById('map');
-    const options = {
-      center: new window.kakao.maps.LatLng(37.5665, 126.9780),
-      level: 3,
-    };
+    const options = { center: new window.kakao.maps.LatLng(37.5665, 126.9780), level: 3 };
     const map = new window.kakao.maps.Map(container, options);
     mapRef.current = map;
-
-    const handleClick = (mouseEvent) => {
-      const latlng = mouseEvent.latLng;
-      addMarker(latlng);
-    };
-    window.kakao.maps.event.addListener(map, 'click', handleClick);
-
-    return () => {
-      window.kakao.maps.event.removeListener(map, 'click', handleClick);
-    };
+    window.kakao.maps.event.addListener(map, 'click', (mouseEvent) => {
+      addMarker(mouseEvent.latLng);
+    });
   }, [meetingId]);
 
   if (!meetingId) {
-    return (
-      <div className="text-center text-red-600 mt-10">
-        ❗ URL에 <code>?meetingId=abc123</code> 를 붙여주세요.
-      </div>
-    );
+    return <div className="text-center text-red-600 mt-10">❗ URL에 <code>?meetingId=abc123</code> 를 붙여주세요.</div>;
   }
 
   return (
     <div className="bg-gray-100 min-h-screen py-10">
-      <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">
-        Our Meeting Guide
-      </h1>
+      <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">Our Meeting Guide</h1>
 
       <div className="max-w-xl mx-auto bg-white shadow-lg rounded-2xl p-6">
         <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
@@ -285,13 +221,10 @@ const Map = () => {
             placeholder="장소 또는 주소 입력"
             className="flex-1 border border-gray-300 p-3 rounded-lg w-full text-lg"
           />
-
           <button
             onClick={handleSearch}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg"
-          >
-            검색
-          </button>
+          >검색</button>
         </div>
 
         <div id="map" style={{ width: '100%', height: '500px' }}></div>
@@ -305,13 +238,9 @@ const Map = () => {
                 value={p.name}
                 checked={selectedParticipants.includes(p.name)}
                 onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedParticipants((prev) => [...prev, p.name]);
-                  } else {
-                    setSelectedParticipants((prev) =>
-                      prev.filter((name) => name !== p.name)
-                    );
-                  }
+                  setSelectedParticipants((prev) =>
+                    e.target.checked ? [...prev, p.name] : prev.filter((n) => n !== p.name)
+                  );
                 }}
                 className="mr-2"
               />
@@ -324,40 +253,32 @@ const Map = () => {
           <button
             onClick={handleConfirmLocation}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg"
-          >
-            출발지 확정
-          </button>
+          >출발지 확정</button>
 
           <button
-  onClick={handleFetchParticipants}
-  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg text-lg"
->
-  모임 추천 위치 보기
-</button>
-
+            onClick={handleFetchParticipants}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg text-lg"
+          >모임 추천 위치 보기</button>
 
           <button
             onClick={handleToggleCategories}
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg text-lg"
-          >
-            모임장소 추천
-          </button>
+          >모임장소 추천</button>
         </div>
 
         {showCategoryToggles && (
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <label className="flex items-center">
-              <input type="checkbox" className="mr-2" /> 카페
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" className="mr-2" /> 스터디카페
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" className="mr-2" /> 공간대여
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" className="mr-2" /> 회의실
-            </label>
+            {Object.keys(categoryConfigs).map((key) => (
+              <label key={key} className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={visibleCategories[key]}
+                  onChange={() => toggleCategory(key)}
+                  className="mr-2"
+                />
+                {categoryConfigs[key].keyword}
+              </label>
+            ))}
           </div>
         )}
 
@@ -367,11 +288,26 @@ const Map = () => {
             <button
               onClick={handleCopyAddress}
               className="ml-2 bg-gray-200 hover:bg-gray-300 text-sm px-3 py-1 rounded"
-            >
-              복사
-            </button>
+            >복사</button>
           </div>
         )}
+
+        {Object.keys(categoryPlaces).map((key) => (
+          visibleCategories[key] && categoryPlaces[key]?.length > 0 && (
+            <div key={key} className="mt-4">
+              <h3 className="font-bold mb-2 text-gray-800">{categoryConfigs[key].keyword} 추천 리스트</h3>
+              <ul className="text-sm text-gray-700 list-disc ml-4">
+                {categoryPlaces[key].map((place, index) => (
+                  <li key={index}>
+                    <a href={place.place_url} target="_blank" rel="noopener noreferrer">
+                      [{categoryConfigs[key].keyword}] {place.place_name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        ))}
       </div>
     </div>
   );
