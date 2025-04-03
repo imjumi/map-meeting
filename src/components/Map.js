@@ -13,6 +13,7 @@ const Map = () => {
   const userName = searchParams.get('name');
   const recommendMarkerRef = useRef(null);
   const [recommendAddress, setRecommendAddress] = useState('');
+  const [copied, setCopied] = useState(false);
   const recommendInfoWindowRef = useRef(null);
   const [participants, setParticipants] = useState([]);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
@@ -28,11 +29,12 @@ const Map = () => {
   const [categoryPlaces, setCategoryPlaces] = useState({});
 
   const categoryConfigs = {
-    cafe: { keyword: '카페', color: 'blue' },
-    study: { keyword: '스터디카페', color: 'green' },
-    rental: { keyword: '공간대여', color: 'orange' },
-    meeting: { keyword: '회의실', color: 'purple' },
+    cafe: { keyword: '카페', color: 'blue', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
+    study: { keyword: '스터디카페', color: 'green', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
+    rental: { keyword: '공간대여', color: 'orange', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
+    meeting: { keyword: '회의실', color: 'purple', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
   };
+
 
   const saveStartLocation = async (lat, lng) => {
     if (!userName || !meetingId) return;
@@ -47,7 +49,7 @@ const Map = () => {
     }
   };
 
-  const handleConfirmLocation = () => {
+   const handleConfirmLocation = () => {
     const marker = markerRef.current;
     if (!marker || !meetingId || !userName) return alert('출발지 선택 후 확정해주세요.');
     const position = marker.getPosition();
@@ -75,7 +77,7 @@ const Map = () => {
     });
   };
 
-  const toggleCategory = (key) => {
+   const toggleCategory = (key) => {
     const updated = !visibleCategories[key];
     setVisibleCategories((prev) => ({ ...prev, [key]: updated }));
     const map = mapRef.current;
@@ -98,11 +100,20 @@ const Map = () => {
               const marker = new window.kakao.maps.Marker({
                 position: latlng,
                 title: place.place_name,
+                image: new window.kakao.maps.MarkerImage(
+                  categoryConfigs[key].icon,
+                  new window.kakao.maps.Size(24, 35)
+                )
               });
               const infowindow = new window.kakao.maps.InfoWindow({
-                content: `<div>[${categoryConfigs[key].keyword}] ${place.place_name}</div>`
+                content: `<div><a href="${place.place_url}" target="_blank" style="text-decoration:none;color:inherit;"><strong>[${categoryConfigs[key].keyword}]</strong> ${place.place_name}</a></div>`
               });
-              window.kakao.maps.event.addListener(marker, 'click', () => infowindow.open(map, marker));
+              window.kakao.maps.event.addListener(marker, 'click', () => {
+                infowindow.open(map, marker);
+                setTimeout(() => infowindow.close(), 2000);
+              });
+              window.kakao.maps.event.addListener(marker, 'mouseover', () => marker.setZIndex(999));
+              window.kakao.maps.event.addListener(marker, 'mouseout', () => marker.setZIndex(1));
               if (updated) marker.setMap(map);
               return marker;
             });
@@ -113,6 +124,7 @@ const Map = () => {
       );
     }
   };
+
 
   const handleFetchParticipants = async () => {
     try {
@@ -188,10 +200,14 @@ const Map = () => {
   const handleCopyAddress = () => {
     if (recommendAddress) {
       navigator.clipboard.writeText(recommendAddress)
-        .then(() => alert('주소가 복사되었습니다!'))
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
         .catch((err) => console.error('복사 실패:', err));
     }
   };
+
 
   useEffect(() => {
     if (!meetingId) return;
@@ -284,12 +300,15 @@ const Map = () => {
 
         {recommendAddress && (
           <div className="text-center text-gray-700 text-lg mt-6">
-            📍 추천 위치 주소: <span className="font-semibold">{recommendAddress}</span>
-            <button
-              onClick={handleCopyAddress}
-              className="ml-2 bg-gray-200 hover:bg-gray-300 text-sm px-3 py-1 rounded"
-            >복사</button>
-          </div>
+      📍 추천 위치 주소: <span className="font-semibold">{recommendAddress}</span>
+      <button
+        onClick={handleCopyAddress}
+        className="ml-2 bg-gray-200 hover:bg-gray-300 text-sm px-3 py-1 rounded"
+      >복사</button>
+      {copied && (
+        <p className="text-green-600 text-sm mt-2">주소가 복사되었습니다!</p>
+      )}
+    </div>
         )}
 
         {Object.keys(categoryPlaces).map((key) => (
@@ -299,8 +318,8 @@ const Map = () => {
               <ul className="text-sm text-gray-700 list-disc ml-4">
                 {categoryPlaces[key].map((place, index) => (
                   <li key={index}>
-                    <a href={place.place_url} target="_blank" rel="noopener noreferrer">
-                      [{categoryConfigs[key].keyword}] {place.place_name}
+                    <a href={place.place_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      {place.place_name} <span className="text-gray-500">({place.distance}m)</span>
                     </a>
                   </li>
                 ))}
