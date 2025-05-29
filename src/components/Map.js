@@ -225,7 +225,7 @@ const Map = () => {
 
   return (
     <div className="bg-gray-100 min-h-screen py-10">
-      <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">모임 장소 추천</h1>
+      <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">모임 장소 추천 받기</h1>
 
       <div className="max-w-xl mx-auto bg-white shadow-lg rounded-2xl p-6">
         <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
@@ -233,6 +233,8 @@ const Map = () => {
             type="text"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSearch();}}
             placeholder="장소 또는 주소 입력"
             className="flex-1 border border-gray-300 p-3 rounded-lg w-full text-lg"
           />
