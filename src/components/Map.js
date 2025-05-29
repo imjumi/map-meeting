@@ -32,6 +32,7 @@ const Map = () => {
     study: { keyword: '스터디카페', color: 'green', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
     rental: { keyword: '공간대여', color: 'orange', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
     meeting: { keyword: '회의실', color: 'purple', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
+    parking: { keyword: '주차장', color: 'gray', icon: 'http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png' },
   };
 
 
@@ -193,7 +194,7 @@ const Map = () => {
 
   const handleToggleCategories = () => {
     setShowCategoryToggles(true);
-    setVisibleCategories({ cafe: false, study: false, rental: false, meeting: false });
+    setVisibleCategories({ cafe: false, study: false, rental: false, meeting: false, parking: false });
   };
 
   const handleCopyAddress = () => {
