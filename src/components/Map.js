@@ -7,7 +7,6 @@ const Map = () => {
   const mapRef = useRef(null);
   const markerRef = useRef(null);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [tooltip, setTooltip] = useState(null);
   const [searchParams] = useSearchParams();
   const meetingId = searchParams.get('meetingId');
   const userName = searchParams.get('name');
