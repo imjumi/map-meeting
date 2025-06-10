@@ -544,7 +544,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { db } from '../firebase';
 import { collection, setDoc, doc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'react-router-dom';
-import Header from './components/Header';
+import Header from './header';
 
 const Map = () => {
   const mapRef = useRef(null);
