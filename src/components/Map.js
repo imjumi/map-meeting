@@ -432,7 +432,7 @@ const Map = () => {
           {saved && (
             <p className="text-center text-green-600 font-semibold">{t('savedMessage')}</p>
           )}
-
+          {showParticipantSelection &&(
           <div className="bg-gray-50 p-4 rounded shadow-sm">
             <h2 className="font-bold mb-2 text-gray-800">{t('selectParticipants')}</h2>
             <div className="max-h-40 overflow-y-auto custom-scrollbar">
@@ -454,6 +454,7 @@ const Map = () => {
               ))}
             </div>
           </div>
+          )}
 
           <div className="flex flex-col gap-3">
             <button
@@ -471,6 +472,7 @@ const Map = () => {
               className="bg-blue-700 hover:bg-blue-900 text-white px-6 py-3 rounded-lg text-lg shadow-md hover:shadow-lg transition duration-200 ease-in-out transform hover:-translate-y-0.5 active:translate-y-0.5 font-bold w-full"
             >{t('recommendPlaceButton')}</button>
           </div>
+        
 
           {showCategoryToggles && (
             <div className="grid grid-cols-2 gap-2 p-2 bg-gray-50 rounded shadow-sm">
