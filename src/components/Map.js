@@ -432,7 +432,8 @@ const Map = () => {
           {saved && (
             <p className="text-center text-green-600 font-semibold">{t('savedMessage')}</p>
           )}
-          {showParticipantSelection &&(
+          
+          {showParticipantSelection && ( // <-- 여기가 시작
           <div className="bg-gray-50 p-4 rounded shadow-sm">
             <h2 className="font-bold mb-2 text-gray-800">{t('selectParticipants')}</h2>
             <div className="max-h-40 overflow-y-auto custom-scrollbar">
